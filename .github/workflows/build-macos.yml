@@ -1,0 +1,81 @@
+name: Build Branded macOS RustDesk Client
+
+on:
+  workflow_dispatch: # Manual trigger from GitHub Actions tab
+
+jobs:
+  build-macos:
+    runs-on: macos-14 # Uses Apple Silicon (M-series) runner; change to macos-13 for Intel x86_64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install System Dependencies
+        run: |
+          brew update
+          brew install cmake ninja pkg-config nasm create-dmg cocoapods
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@1.75.0
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Setup Flutter Framework
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.x'
+          channel: 'stable'
+
+      - name: Setup vcpkg & C++ Libraries
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout 2023.04.15
+          ./bootstrap-vcpkg.sh -disableMetrics
+          ./vcpkg install libvpx libyuv opus aom
+          echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
+
+      - name: Inject Custom Server Config
+        run: |
+          SERVER="${{ secrets.RUSTDESK_SERVER }}"
+          KEY="${{ secrets.RUSTDESK_KEY }}"
+          
+          # Inject host & key into the Rust source code
+          CONFIG_FILE="src/common.rs"
+          if [ -f "$CONFIG_FILE" ]; then
+            sed -i '' "s/REND_SERVER: &str = \"\"/REND_SERVER: &str = \"$SERVER\"/g" $CONFIG_FILE
+            sed -i '' "s/RS_PUB_KEY: &str = \"\"/RS_PUB_KEY: &str = \"$KEY\"/g" $CONFIG_FILE
+          fi
+
+      - name: Build Flutter App & macOS Bundle
+        run: |
+          cd flutter
+          flutter pub get
+          cd macos
+          pod install
+          cd ..
+          flutter build macos --release
+
+      - name: Package into DMG
+        run: |
+          mkdir -p output
+          APP_PATH="flutter/build/macos/Build/Products/Release/RustDesk.app"
+          
+          # Create DMG installer
+          create-dmg \
+            --volname "RustDesk Installer" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            "output/Branded-RustDesk-macOS.dmg" \
+            "$APP_PATH"
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-Branded-RustDesk-DMG
+          path: output/Branded-RustDesk-macOS.dmg
