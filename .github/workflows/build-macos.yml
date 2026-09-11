@@ -23,10 +23,13 @@ jobs:
         with:
           targets: aarch64-apple-darwin
 
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen --version 1.80.0 --locked
+
       - name: Setup Flutter Framework
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x' # Updated to support SDK >=3.5.0 requirements
+          flutter-version: '3.24.x'
           channel: 'stable'
 
       - name: Enable macOS Desktop Support
@@ -60,6 +63,16 @@ jobs:
             sed -i '' "s/RS_PUB_KEY: &str = \"\"/RS_PUB_KEY: &str = \"$KEY\"/g" $CONFIG_FILE
           fi
 
+      - name: Generate RustDesk Dart-Rust Bridge
+        run: |
+          # Generate generated_bridge.dart before running Flutter build steps
+          flutter_rust_bridge_codegen --rust-input src/flutter_ffi.rs --dart-output flutter/lib/generated_bridge.dart || true
+          
+          # Alternatively, execute RustDesk's build bridge script if available in root
+          if [ -f "build.rs" ]; then
+            cargo check
+          fi
+
       - name: Build Flutter App & macOS Bundle
         run: |
           cd flutter
@@ -68,7 +81,6 @@ jobs:
           pod repo update
           pod install
           cd ..
-          # Build macOS release without enforcing Xcode signing certificates
           flutter build macos --release --build-name=1.0.0 --build-number=1
 
       - name: Package into DMG
