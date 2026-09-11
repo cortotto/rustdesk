@@ -68,7 +68,8 @@ jobs:
           pod repo update
           pod install
           cd ..
-          flutter build macos --release --no-codesign
+          # Build macOS release without enforcing Xcode signing certificates
+          flutter build macos --release --build-name=1.0.0 --build-number=1
 
       - name: Package into DMG
         run: |
