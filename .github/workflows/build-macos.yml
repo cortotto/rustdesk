@@ -34,12 +34,19 @@ jobs:
 
       - name: Setup vcpkg & C++ Libraries
         run: |
+          # Temporarily move root vcpkg.json to prevent Manifest Mode activation
+          if [ -f "vcpkg.json" ]; then mv vcpkg.json vcpkg.json.bak; fi
+          
           rm -rf vcpkg
           git clone --depth 1 https://github.com/microsoft/vcpkg.git
           cd vcpkg
           ./bootstrap-vcpkg.sh -disableMetrics
-          ./vcpkg install --feature-flags=-manifests libvpx libyuv opus aom
+          ./vcpkg install libvpx libyuv opus aom
           echo "VCPKG_ROOT=$PWD" >> $GITHUB_ENV
+          
+          # Restore root vcpkg.json for subsequent Rust/Flutter build steps
+          cd ..
+          if [ -f "vcpkg.json.bak" ]; then mv vcpkg.json.bak vcpkg.json; fi
 
       - name: Inject Custom Server Config
         run: |
