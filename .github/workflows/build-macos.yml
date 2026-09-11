@@ -26,7 +26,7 @@ jobs:
       - name: Setup Flutter Framework
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x'
+          flutter-version: '3.24.x' # Updated to support SDK >=3.5.0 requirements
           channel: 'stable'
 
       - name: Enable macOS Desktop Support
