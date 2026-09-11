@@ -38,7 +38,7 @@ jobs:
           git clone --depth 1 https://github.com/microsoft/vcpkg.git
           cd vcpkg
           ./bootstrap-vcpkg.sh -disableMetrics
-          ./vcpkg install --no-manifest libvpx libyuv opus aom
+          ./vcpkg install --feature-flags=-manifests libvpx libyuv opus aom
           echo "VCPKG_ROOT=$PWD" >> $GITHUB_ENV
 
       - name: Inject Custom Server Config
